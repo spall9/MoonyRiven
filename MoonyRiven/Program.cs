@@ -60,8 +60,6 @@ namespace MoonyRiven
                 Drawing.OnDraw += DrawingOnOnDraw;
             };
         }
-
-        private static readonly Text rCdText = new Text("", new Font("Euphemia", 18F, FontStyle.Bold));
         private static void DrawingOnOnDraw(EventArgs args)
         {
             bool useR1 = RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue;
@@ -74,8 +72,11 @@ namespace MoonyRiven
                 float rCD_Sec = (15000 - (float) (Environment.TickCount - LastR))/1000;
                 string rCd_Str = rCD_Sec.ToString("0.0");
 
-                rCdText.TextValue = rCd_Str;
-                rCdText.Color = Color.Orange;
+                Text rCdText = new Text("", new Font("Euphemia", 18F, FontStyle.Bold))
+                {
+                    TextValue = rCd_Str,
+                    Color = Color.Orange
+                };
                 rCdText.Position = Player.Instance.Position.WorldToScreen() -
                                    new Vector2((float) rCdText.Bounding.Width/2, -50);
                 rCdText.Draw();
