@@ -20,6 +20,7 @@ namespace MoonyRiven
             menu.AddGroupLabel("Misc");
             menu.Add("qDelay", new Slider("Q cancel delay", 29, 20, 100));
             menu.Add("q3Delay", new Slider("Q3 cancel delay", 42, 20, 100));
+            menu.Add("antiGapW", new CheckBox("AntiGap W"));
         }
     }
 }

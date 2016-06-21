@@ -24,7 +24,7 @@ namespace MoonyRiven
 
         static Item Hydra;
         static Item Tiamat;
-        private static AIHeroClient me = ObjectManager.Player;
+        private static readonly AIHeroClient me = ObjectManager.Player;
 
         static int QStacks
         {
@@ -58,8 +58,19 @@ namespace MoonyRiven
                 AIHeroClient.OnProcessSpellCast += OnProcCast;
                 Game.OnUpdate += GameOnOnUpdate;
                 Drawing.OnDraw += DrawingOnOnDraw;
+                Gapcloser.OnGapcloser += GapcloserOnOnGapcloser;
             };
         }
+
+        private static void GapcloserOnOnGapcloser(AIHeroClient sender, Gapcloser.GapcloserEventArgs gapcloserEventArgs)
+        {
+            if (!sender.IsEnemy)
+                return;
+
+            if (gapcloserEventArgs.End.Distance(me) <= W.Range && RivenMenu.menu["antiGapW"].Cast<CheckBox>().CurrentValue)
+                W.Cast();
+        }
+
         private static void DrawingOnOnDraw(EventArgs args)
         {
             bool useR1 = RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue;
@@ -102,7 +113,7 @@ namespace MoonyRiven
 
         public static double GetUltDamage(Obj_AI_Base target, double health)
         {
-            if (target != null)
+            if (target != null && target.IsValid)
             {
                 var missinghealth = (target.MaxHealth - health) / target.MaxHealth > 0.75 ? 0.75 : (target.MaxHealth - health) / target.MaxHealth;
                 var pluspercent = missinghealth * 8 / 3;
@@ -116,19 +127,44 @@ namespace MoonyRiven
         {
             ForceSkills();
             if (Environment.TickCount - LastQ >= 3550 && QStacks > 0 &&
-                !me.IsRecalling() && Q.IsReady()) Q.Cast(Game.CursorPos);
+                !me.IsRecalling() && Q.IsReady())
+            {
+                Q.Cast(me.Position);
+            }
 
             if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
                 Burst();
 
             var target = GetTarget();
             if (target != null && target.IsValid)
-            if (RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange())
+                if (RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange())
+                {
+                    if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
+                            target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
+                        R2.Cast(R2.GetPrediction(target).CastPosition);
+                }
+
+            Combo(target);
+
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Flee)
             {
-                if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
-                        target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
-                    R2.Cast(R2.GetPrediction(target).CastPosition);
+                var dirVec = (Game.CursorPos - me.Position).Normalized();
+                E.Cast(me.Position + dirVec*E.Range);
+                if (!E.IsReady() && Environment.TickCount - LastE > 100) Q.Cast(me.Position + dirVec*Q.Range);
             }
+        }
+
+        private static void Combo(Obj_AI_Base target)
+        {
+            if (target == null || !target.IsValid)
+                return;
+
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
+                            E.IsReady())
+                E.Cast(target.Position);
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
+                QStacks == 0)
+                ForceCastQ(target);
         }
 
         private static bool InWRange(GameObject target)
@@ -165,6 +201,7 @@ namespace MoonyRiven
 
             if (me.Distance(sender.ServerPosition) <= args.SData.CastRange)
             {
+                #region SPAM
                 switch (args.SData.TargettingType)
                 {
                     case SpellDataTargetType.Unit:
@@ -334,6 +371,7 @@ namespace MoonyRiven
                         if (E.IsReady()) E.Cast();
                     }
                 }
+                #endregion
             }
         }
 
@@ -382,7 +420,8 @@ namespace MoonyRiven
                     target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
                     R2.Cast(R2.GetPrediction(target).CastPosition);
 
-                if (RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady())
+                if (RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && Orbwalker.ActiveModesFlags ==
+                    Orbwalker.ActiveModes.Combo)
                 {
                     ForceR();
                 }
@@ -419,7 +458,7 @@ namespace MoonyRiven
 
         static bool IsSecondR
         {
-            get { return !IsFirstR; }
+            get { return !me.Spellbook.GetSpell(SpellSlot.R).SData.Name.Contains("RivenFengShuiEngine"); }
         }
 
         static bool forceQ, forceW, forceR, forceItem, forceR2;
@@ -496,6 +535,7 @@ namespace MoonyRiven
                     }
                     break;
                 case "Spell3":
+                    LastE = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, 45 * 10 + 3);
                     break;
@@ -539,6 +579,7 @@ namespace MoonyRiven
         static int LastR { get; set; }
 
         static int LastQ { get; set; }
+        private static int LastE { get; set; }
 
         static int LastW { get; set; }
         private static void Burst()
