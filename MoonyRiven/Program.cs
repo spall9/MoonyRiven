@@ -78,14 +78,13 @@ namespace MoonyRiven
             Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
             Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red, useR1 ? "On" : "Off");
 
-            if (IsSecondR && RivenMenu.menu["drawRExpire"].Cast<CheckBox>().CurrentValue && R.IsReady())
+            if (IsSecondR && RivenMenu.menu["drawRExpire"].Cast<CheckBox>().CurrentValue && R.IsReady() && me.Level > 5)
             {
                 float rCD_Sec = (15000 - (float) (Environment.TickCount - LastR))/1000;
                 string rCd_Str = rCD_Sec.ToString("0.0");
 
-                Text rCdText = new Text("", new Font("Euphemia", 18F, FontStyle.Bold))
+                Text rCdText = new Text(rCd_Str, new Font("Euphemia", 18F, FontStyle.Bold))
                 {
-                    TextValue = rCd_Str,
                     Color = Color.Orange
                 };
                 rCdText.Position = Player.Instance.Position.WorldToScreen() -
@@ -95,7 +94,7 @@ namespace MoonyRiven
 
             if (RivenMenu.menu["drawBurst"].Cast<CheckBox>().CurrentValue)
             {
-                float maxRange = !Flash.IsReady() ?  350 : 700;
+                float maxRange = !Flash.IsReady() ?  350 : 350+425;
                 new Circle(new ColorBGRA(new Vector4(255, 0, 0, 1)), maxRange).Draw(me.Position);
             }
         }
@@ -148,9 +147,8 @@ namespace MoonyRiven
 
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Flee)
             {
-                var dirVec = (Game.CursorPos - me.Position).Normalized();
-                E.Cast(me.Position + dirVec*E.Range);
-                if (!E.IsReady() && Environment.TickCount - LastE > 100) Q.Cast(me.Position + dirVec*Q.Range);
+                E.Cast(me.Position.Extend(Game.CursorPos, E.Range).To3D());
+                if (!E.IsReady() && Environment.TickCount - LastE > 100) Q.Cast(me.Position.Extend(Game.CursorPos, Q.Range).To3D());
             }
         }
 
@@ -187,7 +185,7 @@ namespace MoonyRiven
                 Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget()), 
                     (int)Orbwalker.AttackCastDelay*1000 + Orbwalker.ExtraWindUpTime+90);
                 if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-                    Core.RepeatAction(() => R2.Cast(GetTarget().ServerPosition), 2, 3000);
+                    Core.DelayAction(ForceR2, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
             }
 
             if (!args.IsAutoAttack())
@@ -407,7 +405,7 @@ namespace MoonyRiven
                 {
                     E.Cast(target.Position);
                     Core.DelayAction(ForceItem, 10);
-                    Core.DelayAction(ForceW, 240);
+                    Core.DelayAction(() => ForceW(), 240);
                 }
                 else if (Q.IsReady())
                 {
@@ -566,10 +564,10 @@ namespace MoonyRiven
             forceR2 = R.IsReady() && IsSecondR;
             Core.DelayAction(() => forceR2 = false, 500);
         }
-        private static void ForceW()
+        private static void ForceW(bool burst = false)
         {
-            forceW = W.IsReady();
-            Core.DelayAction(() => forceW = false, 500);
+            forceW = W.IsReady(); 
+            Core.DelayAction(() => forceW = false, burst ? 1000 : 500);
         }
 
         private static void ForceCastQ(AttackableUnit target)
@@ -594,13 +592,19 @@ namespace MoonyRiven
                 return;
             }
 
-            if (R.IsReady() && IsFirstR && E.IsReady() && W.IsReady() && Q.IsReady() &&
-                me.Distance(target.Position) <= 350)
+            bool distTooHigh = Flash.IsReady()
+                ? me.Distance(target.Position) > 350 + 425 : me.Distance(target.Position) > 350;
+            bool needFlash = me.Distance(target.Position) > 350 && me.Distance(target.Position) < 350 + 425;
+
+            if (needFlash && !distTooHigh)
+                Flash.Cast(me.Position.Extend(target, Flash.Range).To3D());
+
+            if (R.IsReady() && IsFirstR && E.IsReady() && W.IsReady() && Q.IsReady() && !distTooHigh)
             {
                 E.Cast(target.Position);
                 ForceR();
                 Core.DelayAction(() => ForceCastQ(target), 150);
-                Core.DelayAction(ForceW, 160);
+                Core.DelayAction(() => ForceW(true), 160);
             }
         }
     }

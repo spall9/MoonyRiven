@@ -17,7 +17,7 @@ namespace MoonyRiven
             menu.Add("useR2", new CheckBox("Use R2"));
             menu.Add("burst", new KeyBind("DebugMode", false, KeyBind.BindTypes.HoldActive));
             menu.AddGroupLabel("Drawing");
-            //menu.Add("drawBurst", new CheckBox("Draw burst range"));
+            menu.Add("drawBurst", new CheckBox("Draw burst range"));
             menu.Add("drawRExpire", new CheckBox("Draw R expiry"));
             menu.AddGroupLabel("Misc");
             menu.Add("qDelay", new Slider("Q cancel delay", 29, 20, 100));
