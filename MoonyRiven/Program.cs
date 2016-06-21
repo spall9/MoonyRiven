@@ -183,10 +183,10 @@ namespace MoonyRiven
             if (target == null || !target.IsValid)
                 return;
 
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && me.Distance(target.Position) > me.GetAutoAttackRange() &&
                     E.IsReady() && RivenMenu.menu["gapE"].Cast<CheckBox>().CurrentValue)
                 E.Cast(target.Position);
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && me.Distance(target.Position) > me.GetAutoAttackRange() &&
                 QStacks == 0 && RivenMenu.menu["gapQ1"].Cast<CheckBox>().CurrentValue)
                 ForceCastQ(target);
         }
@@ -488,7 +488,7 @@ namespace MoonyRiven
             if (forceR2 && IsSecondR)
             {
                 var target = TargetSelector.SelectedTarget;
-                if (target != null && target.IsValid) R2.Cast(target.Position);
+                if (target != null && target.IsValid && !target.IsDead) R2.Cast(target.Position);
             }
         }
 
