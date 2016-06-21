@@ -184,7 +184,8 @@ namespace MoonyRiven
 
             if (args.SData.Name.Contains("Tiamat"))
             {
-                Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget()), 1);
+                Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget()), 
+                    (int)Orbwalker.AttackCastDelay*1000 + Orbwalker.ExtraWindUpTime+90);
                 if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
                     Core.RepeatAction(() => R2.Cast(GetTarget().ServerPosition), 2, 3000);
             }
@@ -418,7 +419,7 @@ namespace MoonyRiven
 
                 if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
                     target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
-                    R2.Cast(R2.GetPrediction(target).CastPosition);
+                    ForceR2();
 
                 if (RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && Orbwalker.ActiveModesFlags ==
                     Orbwalker.ActiveModes.Combo)
@@ -433,20 +434,21 @@ namespace MoonyRiven
             Obj_AI_Base target = null;
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo)
                 target = TargetSelector.GetTarget(250 + me.AttackRange + 70, DamageType.Physical);
-            else if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.JungleClear)
-            {
-                var Mobs =
-                    EntityManager.MinionsAndMonsters.GetJungleMonsters(me.Position, 250 + me.AttackRange + 70)
-                        .OrderByDescending(x => x.MaxHealth).ToList();
-                target = Mobs.FirstOrDefault();
-            }
-            else if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.LaneClear)
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.LaneClear)
             {
                 var Mobs =
                     EntityManager.MinionsAndMonsters.GetLaneMinions(EntityManager.UnitTeam.Enemy, me.Position, 250 + me.AttackRange + 70)
                         .OrderByDescending(x => x.MaxHealth).ToList();
                 target = Mobs.FirstOrDefault();
             }
+            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.JungleClear)
+            {
+                var Mobs =
+                    EntityManager.MinionsAndMonsters.GetJungleMonsters(me.Position, 250 + me.AttackRange + 70)
+                        .OrderByDescending(x => x.MaxHealth).ToList();
+                target = Mobs.FirstOrDefault();
+            }
+            
 
             return target;
         }
@@ -477,7 +479,7 @@ namespace MoonyRiven
             if (forceR2 && IsSecondR)
             {
                 var target = TargetSelector.SelectedTarget;
-                if (target != null && target.IsValid) R.Cast(target.Position);
+                if (target != null && target.IsValid) R2.Cast(target.Position);
             }
         }
 
