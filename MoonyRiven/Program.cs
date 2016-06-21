@@ -78,18 +78,19 @@ namespace MoonyRiven
             Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
             Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red, useR1 ? "On" : "Off");
 
-            if (IsSecondR && RivenMenu.menu["drawRExpire"].Cast<CheckBox>().CurrentValue && R.IsReady() && me.Level > 5)
+            if (IsSecondR && RivenMenu.menu["drawRExpire"].Cast<CheckBox>().CurrentValue && me.Level > 5)
             {
-                float rCD_Sec = (15000 - (float) (Environment.TickCount - LastR))/1000;
+                float rCD_Sec = (15000 - (float)(Environment.TickCount - LastR))/1000;
                 string rCd_Str = rCD_Sec.ToString("0.0");
 
-                Text rCdText = new Text(rCd_Str, new Font("Euphemia", 18F, FontStyle.Bold))
+                Text rCdText = new Text(rCd_Str, new Font("Gill Sans MT Pro Book", 20f, FontStyle.Bold))
                 {
-                    Color = Color.Orange
+                    Color = rCD_Sec <= 5 && rCD_Sec > 2 ? Color.DarkOrange : Color.Red
                 };
-                rCdText.Position = Player.Instance.Position.WorldToScreen() -
-                                   new Vector2((float) rCdText.Bounding.Width/2, -50);
-                rCdText.Draw();
+                rCdText.Position = heropos - new Vector2((float) rCdText.Bounding.Width/2, -100);
+
+                if (rCD_Sec <= 5 && rCD_Sec > 0)
+                    rCdText.Draw();
             }
 
             if (RivenMenu.menu["drawBurst"].Cast<CheckBox>().CurrentValue)
@@ -102,6 +103,31 @@ namespace MoonyRiven
         private static void OnProcCast(Obj_AI_Base sender, GameObjectProcessSpellCastEventArgs args)
         {
             if (!sender.IsMe) return;
+
+            if (args.SData.Name.Contains("RivenMartyr") && RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+            {
+                Orbwalker.DisableMovement = true;
+                Player.IssueOrder(GameObjectOrder.MoveTo, GetTarget());
+                Core.RepeatAction(() =>
+                {
+                    ForceItem();
+                    Core.DelayAction(() => { if (QStacks == 1) ForceCastQ(GetTarget());}, 1);
+                }, 0, 1000);
+                Core.DelayAction(() => Orbwalker.DisableMovement = false, 1000);
+            }
+            if (args.SData.Name.Contains("Tiamat"))
+            {
+                if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                {
+                    Core.RepeatAction(ForceR2, 0, 1000);
+                }
+                else
+                    Core.DelayAction(() =>
+                    {
+                        Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget());
+                    }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
+
+            }
 
             if (args.SData.Name.Contains("ItemTiamatCleave")) forceItem = false;
             if (args.SData.Name.Contains("RivenTriCleave")) forceQ = false;
@@ -179,14 +205,6 @@ namespace MoonyRiven
         {
             if (!sender.IsMe)
                 return;
-
-            if (args.SData.Name.Contains("Tiamat"))
-            {
-                Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget()), 
-                    (int)Orbwalker.AttackCastDelay*1000 + Orbwalker.ExtraWindUpTime+90);
-                if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-                    Core.DelayAction(ForceR2, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
-            }
 
             if (!args.IsAutoAttack())
                 return;
@@ -376,19 +394,22 @@ namespace MoonyRiven
 
         private static void ExectuteSpellsAfterAA()
         {
-            if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-            {
-                if (!W.IsReady())
-                    ForceR2();
-                return;
-            }
-
             if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
                 Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
                 return;
 
             /*set target*/
             Obj_AI_Base target = GetTarget();
+
+            if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
+                    target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
+                ForceR2();
+
+            if (RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && Orbwalker.ActiveModesFlags ==
+                Orbwalker.ActiveModes.Combo)
+            {
+                ForceR();
+            }
 
             bool castE = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo ||
                          Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo &&
@@ -414,16 +435,6 @@ namespace MoonyRiven
                 }
                 else if (castE)
                     E.Cast(target.ServerPosition);
-
-                if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
-                    target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2"].Cast<CheckBox>().CurrentValue)
-                    ForceR2();
-
-                if (RivenMenu.menu["useR1"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && Orbwalker.ActiveModesFlags ==
-                    Orbwalker.ActiveModes.Combo)
-                {
-                    ForceR();
-                }
             }
         }
 
@@ -522,7 +533,7 @@ namespace MoonyRiven
                     break;
                 case "Spell2":
                     LastW = Environment.TickCount;
-                    if (inFightMode || RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                    if (inFightMode)
                     {
                         Core.DelayAction(Reset, 50*10 + 3);
                         if (ItemReady)
@@ -604,7 +615,7 @@ namespace MoonyRiven
                 E.Cast(target.Position);
                 ForceR();
                 Core.DelayAction(() => ForceCastQ(target), 150);
-                Core.DelayAction(() => ForceW(true), 160);
+                Core.DelayAction(() => ForceW(true), 151);
             }
         }
     }
