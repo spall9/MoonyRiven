@@ -160,10 +160,10 @@ namespace MoonyRiven
                 return;
 
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
-                            E.IsReady())
+                    E.IsReady() && RivenMenu.menu["gapE"].Cast<CheckBox>().CurrentValue)
                 E.Cast(target.Position);
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && target.Distance(me) > me.GetAutoAttackRange() &&
-                QStacks == 0)
+                QStacks == 0 && RivenMenu.menu["gapQ1"].Cast<CheckBox>().CurrentValue)
                 ForceCastQ(target);
         }
 
