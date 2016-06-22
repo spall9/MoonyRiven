@@ -189,7 +189,7 @@ namespace MoonyRiven
                     }
                 }
 
-                if (bestEndVec != Vector2.Zero && maxHitCount >= 1)
+                if (bestEndVec != Vector2.Zero && maxHitCount >= RivenMenu.menu["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
                 {
                     ForceR2(bestEndVec);
                 }

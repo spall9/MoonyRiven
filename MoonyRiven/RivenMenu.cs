@@ -43,6 +43,7 @@ namespace MoonyRiven
             menu.Add("q3Delay", new Slider("Q3 cancel delay", 42, 20, 100));
             menu.Add("antiGapW", new CheckBox("AntiGapcloser W"));
             menu.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage"));
+            menu.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 3, 2, 5));
         }
     }
 }
