@@ -190,6 +190,9 @@ namespace MoonyRiven
                 E.Cast(target.Position);
             if (inCombo && targetOutOfAA && useQGap && !useEGap)
                 ForceCastQ(target);
+
+            if (Orbwalker.CanAutoAttack && InWRange(target))
+                W.Cast();
         }
 
         private static bool InWRange(GameObject target)
@@ -209,10 +212,13 @@ namespace MoonyRiven
 
             if (args.SData.Name.Contains("ItemTiamatCleave") && !RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
             {
-                Core.DelayAction(() =>
+                Orbwalker.DisableMovement = true;
+                Core.RepeatAction(() =>
                 {
                     Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget());
-                }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
+                }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90, 500);
+                Core.DelayAction(() => Orbwalker.DisableMovement = false, 
+                    (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90 + 500);
             }
 
             if (!args.IsAutoAttack())
@@ -459,10 +465,11 @@ namespace MoonyRiven
                 ForceR();
             }
 
-            bool castQ = Enabled("useQ")&& Q.IsReady();
+            bool castQ = Enabled("useQ") && Q.IsReady();
             bool castW = Enabled("useW") && W.IsReady();
             bool castE = Enabled("useE") && E.IsReady();
             bool castItem = Enabled("useItem");
+            bool wCancel = ItemReady || Q.IsReady();
 
             if (target != null && target.IsValid)
             {
@@ -470,14 +477,17 @@ namespace MoonyRiven
                 {
                     if (castItem)
                         ForceItem();
-                    Core.DelayAction(() => W.Cast(), 1);
+                    if (wCancel)
+                        Core.DelayAction(() => W.Cast(), 1);
                 }
                 else if (W.IsReady() && E.IsReady() && !InWRange(target) && me.Distance(target) < E.Range && castW && castE)
                 {
                     E.Cast(target.Position);
                     if (castItem)
                         Core.DelayAction(ForceItem, 10);
-                    Core.DelayAction(() => ForceW(), 240);
+
+                    if (wCancel)
+                        Core.DelayAction(() => ForceW(), 240);
                 }
                 else if (Q.IsReady() && castQ)
                 {
@@ -509,7 +519,8 @@ namespace MoonyRiven
                         .OrderByDescending(x => x.MaxHealth).ToList();
                 target = Mobs.FirstOrDefault();
             }
-            
+            if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                target = TargetSelector.SelectedTarget;
 
             return target;
         }
@@ -588,18 +599,12 @@ namespace MoonyRiven
                     break;
                 case "Spell2":
                     LastW = Environment.TickCount;
-                    if (inFightMode)
+                    if (inFightMode && !Orbwalker.CanAutoAttack)
                     {
-                        Core.DelayAction(Reset, 50*10 + 3);
                         if (Enabled("useItem"))
                             ForceItem();
                         if (Enabled("useQ"))
                             Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
-                    }
-                    else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-                    {
-                        ForceItem();
-                        Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
                     }
                     break;
                 case "Spell3":
@@ -682,7 +687,9 @@ namespace MoonyRiven
             }
 
             if (!ItemReady)
-                ForceR2();
+            {
+                R2.Cast(me.Position.Extend(GetTarget().ServerPosition, 100).To3D());
+            }
         }
     }
 }
