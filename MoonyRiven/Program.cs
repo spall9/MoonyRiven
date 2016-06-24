@@ -462,7 +462,7 @@ namespace MoonyRiven
             bool castQ = Enabled("useQ")&& Q.IsReady();
             bool castW = Enabled("useW") && W.IsReady();
             bool castE = Enabled("useE") && E.IsReady();
-            bool castItem = Enabled("useItem") && E.IsReady();
+            bool castItem = Enabled("useItem");
 
             if (target != null && target.IsValid)
             {
@@ -516,12 +516,12 @@ namespace MoonyRiven
 
         static bool IsFirstR
         {
-            get { return me.Spellbook.GetSpell(SpellSlot.R).SData.Name.Contains("RivenFengShuiEngine"); }
+            get { return ObjectManager.Player.Spellbook.GetSpell(SpellSlot.R).SData.Name.Contains("RivenFengShuiEngine"); }
         }
 
         static bool IsSecondR
         {
-            get { return !me.Spellbook.GetSpell(SpellSlot.R).SData.Name.Contains("RivenFengShuiEngine"); }
+            get { return !ObjectManager.Player.Spellbook.GetSpell(SpellSlot.R).SData.Name.Contains("RivenFengShuiEngine"); }
         }
 
         static bool forceQ, forceW, forceR, forceItem, forceR2;
@@ -591,22 +591,16 @@ namespace MoonyRiven
                     if (inFightMode)
                     {
                         Core.DelayAction(Reset, 50*10 + 3);
-                        if (ItemReady)
+                        if (Enabled("useItem"))
                             ForceItem();
-                        if (Q.IsReady())
-                        {
-                            ForceQTarget = GetTarget();
-                            forceQ = true;
-                        }
+                        if (Enabled("useQ"))
+                            Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
                     }
                     else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-                        if (ItemReady)
-                            ForceItem();
-                        if (Q.IsReady())
-                        {
-                            ForceQTarget = GetTarget();
-                            forceQ = true;
-                        }
+                    {
+                        ForceItem();
+                        Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
+                    }
                     break;
                 case "Spell3":
                     LastE = Environment.TickCount;
@@ -641,7 +635,6 @@ namespace MoonyRiven
             {
                 R2ForcePos = pos == new Vector2() ? me.Position.Extend(GetTarget(), 100) : pos;
                 forceR2 = R.IsReady() && IsSecondR;
-                Chat.Print("ForcingR2:" + forceR2);
                 Core.DelayAction(() => forceR2 = false, 1500);
             }
         }
