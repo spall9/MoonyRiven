@@ -13,7 +13,7 @@ namespace MoonyRiven
             menu.Add("useQ.Combo", new CheckBox("Use Q"));
             menu.Add("useW.Combo", new CheckBox("Use W"));
             menu.Add("useE.Combo", new CheckBox("Use E"));
-            menu.Add("gapQ1.Combo", new CheckBox("Use Q1 to gap"));
+            menu.Add("gapQ1.Combo", new CheckBox("Use Q1 to gap", false));
             menu.Add("gapE.Combo", new CheckBox("Use E to gap"));
             menu.Add("useItem.Combo", new CheckBox("Use Tiamat and Hydra"));
             menu.AddSeparator(10);
@@ -42,7 +42,7 @@ namespace MoonyRiven
             menu.Add("qDelay", new Slider("Q cancel delay", 29, 20, 100));
             menu.Add("q3Delay", new Slider("Q3 cancel delay", 42, 20, 100));
             menu.Add("antiGapW", new CheckBox("AntiGapcloser W"));
-            menu.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage"));
+            menu.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage or Killable"));
             menu.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 3, 2, 5));
         }
     }

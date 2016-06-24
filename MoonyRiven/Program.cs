@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using EloBuddy;
@@ -29,7 +28,7 @@ namespace MoonyRiven
 
         static int QStacks
         {
-            get { return me.HasBuff("RivenTriCleave") ? me.GetBuff("RivenTriCleave").Count : 0; }
+            get { return ObjectManager.Player.HasBuff("RivenTriCleave") ? ObjectManager.Player.GetBuff("RivenTriCleave").Count : 0; }
         }
 
         static void Main(string[] args)
@@ -106,31 +105,6 @@ namespace MoonyRiven
         {
             if (!sender.IsMe) return;
 
-            if (args.SData.Name.Contains("RivenMartyr") && RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-            {
-                Orbwalker.DisableMovement = true;
-                Player.IssueOrder(GameObjectOrder.MoveTo, GetTarget());
-                Core.RepeatAction(() =>
-                {
-                    ForceItem();
-                    Core.DelayAction(() => { if (QStacks == 1) ForceCastQ(GetTarget());}, 1);
-                }, 0, 1000);
-                Core.DelayAction(() => Orbwalker.DisableMovement = false, 1000);
-            }
-            if (args.SData.Name.Contains("Tiamat"))
-            {
-                if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-                {
-                    Core.RepeatAction(() => ForceR2(), 0, 1000);
-                }
-                else
-                    Core.DelayAction(() =>
-                    {
-                        Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget());
-                    }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
-
-            }
-
             if (args.SData.Name.Contains("ItemTiamatCleave")) forceItem = false;
             if (args.SData.Name.Contains("RivenTriCleave")) forceQ = false;
             if (args.SData.Name.Contains("RivenMartyr")) forceW = false;
@@ -205,14 +179,16 @@ namespace MoonyRiven
             {
                 if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
                         target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2.Combo"].Cast<CheckBox>().CurrentValue)
-                    R2.Cast(R2.GetPrediction(target).CastPosition);
+                    ForceR2();
             }
 
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && me.Distance(target.Position) > me.GetAutoAttackRange() + 70 &&
-                    E.IsReady() && RivenMenu.menu["gapE.Combo"].Cast<CheckBox>().CurrentValue)
+            bool inCombo = Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo;
+            bool targetOutOfAA = me.Distance(target.Position) > me.GetAutoAttackRange();
+            bool useEGap = E.IsReady() && RivenMenu.menu["gapE.Combo"].Cast<CheckBox>().CurrentValue;
+            bool useQGap = QStacks == 0 && RivenMenu.menu["gapQ1.Combo"].Cast<CheckBox>().CurrentValue;
+            if (inCombo && targetOutOfAA && useEGap)
                 E.Cast(target.Position);
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo && me.Distance(target.Position) > me.GetAutoAttackRange() + 70 &&
-                QStacks == 0 && RivenMenu.menu["gapQ1.Combo"].Cast<CheckBox>().CurrentValue)
+            if (inCombo && targetOutOfAA && useQGap && !useEGap)
                 ForceCastQ(target);
         }
 
@@ -230,6 +206,14 @@ namespace MoonyRiven
         {
             if (!sender.IsMe)
                 return;
+
+            if (args.SData.Name.Contains("ItemTiamatCleave") && !RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+            {
+                Core.DelayAction(() =>
+                {
+                    Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget());
+                }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90);
+            }
 
             if (!args.IsAutoAttack())
                 return;
@@ -555,8 +539,11 @@ namespace MoonyRiven
             if (forceItem && Tiamat.IsOwned() && Tiamat.IsReady()) Tiamat.Cast();
             if (forceR2 && IsSecondR)
             {
-                var target = TargetSelector.SelectedTarget;
-                if (target != null && target.IsValid && !target.IsDead) R2.Cast(R2ForcePos.To3D());
+                var target = GetTarget();
+                if (target != null && target.IsValid && !target.IsDead)
+                {
+                    R2.Cast(R2ForcePos.To3D());
+                }
             }
         }
 
@@ -612,6 +599,14 @@ namespace MoonyRiven
                             forceQ = true;
                         }
                     }
+                    else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                        if (ItemReady)
+                            ForceItem();
+                        if (Q.IsReady())
+                        {
+                            ForceQTarget = GetTarget();
+                            forceQ = true;
+                        }
                     break;
                 case "Spell3":
                     LastE = Environment.TickCount;
@@ -642,9 +637,13 @@ namespace MoonyRiven
         private static Vector2 R2ForcePos;
         private static void ForceR2(Vector2 pos = new Vector2())
         {
-            R2ForcePos = pos == new Vector2() ? me.Position.Extend(GetTarget(), R2.Range) : pos;
-            forceR2 = R.IsReady() && IsSecondR;
-            Core.DelayAction(() => forceR2 = false, 500);
+            if (GetTarget() != null)
+            {
+                R2ForcePos = pos == new Vector2() ? me.Position.Extend(GetTarget(), 100) : pos;
+                forceR2 = R.IsReady() && IsSecondR;
+                Chat.Print("ForcingR2:" + forceR2);
+                Core.DelayAction(() => forceR2 = false, 1500);
+            }
         }
         private static void ForceW(bool burst = false)
         {
@@ -688,6 +687,9 @@ namespace MoonyRiven
                 Core.DelayAction(() => ForceCastQ(target), 150);
                 Core.DelayAction(() => ForceW(true), 151);
             }
+
+            if (!ItemReady)
+                ForceR2();
         }
     }
 }
