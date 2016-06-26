@@ -15,12 +15,12 @@ namespace MoonyRiven
 {
     class Program
     {
-        static Spell.Skillshot Q;
-        static Spell.Active W;
-        static Spell.Skillshot E;
-        static Spell.Active R;
-        static Spell.Skillshot R2;
-        static Spell.Targeted Flash;
+        protected static Spell.Skillshot Q;
+        protected static Spell.Active W;
+        protected static Spell.Skillshot E;
+        protected static Spell.Active R;
+        protected static Spell.Skillshot R2;
+        protected static Spell.Targeted Flash;
 
         static Item Hydra;
         static Item Tiamat;
@@ -40,7 +40,7 @@ namespace MoonyRiven
                 W = new Spell.Active(SpellSlot.W, 250);
                 E = new Spell.Skillshot(SpellSlot.E, 310, SkillShotType.Linear);
                 R = new Spell.Active(SpellSlot.R);
-                R2 = new Spell.Skillshot(SpellSlot.R, 900, SkillShotType.Cone, 250, 1600, 125);
+                R2 = new Spell.Skillshot(SpellSlot.R, 800, SkillShotType.Cone, 250, 1600, 125);
                 if (Player.Instance.Spellbook.GetSpell(SpellSlot.Summoner1).Name == "SummonerFlash")
                 {
                     Flash = new Spell.Targeted(SpellSlot.Summoner1, 425);
@@ -67,19 +67,19 @@ namespace MoonyRiven
             if (!sender.IsEnemy)
                 return;
 
-            if (gapcloserEventArgs.End.Distance(me) <= W.Range && RivenMenu.menu["antiGapW"].Cast<CheckBox>().CurrentValue)
+            if (gapcloserEventArgs.End.Distance(me) <= W.Range && RivenMenu.misc["antiGapW"].Cast<CheckBox>().CurrentValue)
                 W.Cast();
         }
 
         private static void DrawingOnOnDraw(EventArgs args)
         {
-            bool useR1 = RivenMenu.menu["useR1.Combo"].Cast<KeyBind>().CurrentValue;
+            bool useR1 = RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue;
             var heropos = Drawing.WorldToScreen(ObjectManager.Player.Position);
             Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
             Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red, useR1 ? "On" : "Off");
 
             if (me.Level > 5)
-            if (IsSecondR && RivenMenu.menu["drawRExpire"].Cast<CheckBox>().CurrentValue)
+            if (IsSecondR && RivenMenu.drawings["drawRExpire"].Cast<CheckBox>().CurrentValue)
             {
                 float rCD_Sec = (15000 - (float)(Environment.TickCount - LastR))/1000;
                 string rCd_Str = rCD_Sec.ToString("0.0");
@@ -94,34 +94,33 @@ namespace MoonyRiven
                     rCdText.Draw();
             }
 
-            if (RivenMenu.menu["drawBurst"].Cast<CheckBox>().CurrentValue)
+            if (RivenMenu.drawings["drawBurst"].Cast<CheckBox>().CurrentValue)
             {
-                float maxRange = !Flash.IsReady() ?  350 : 350+425;
+                float maxRange = !Flash.IsReady() ? E.Range + me.GetAutoAttackRange(TargetSelector.SelectedTarget) : 700;
                 new Circle(new ColorBGRA(new Vector4(255, 0, 0, 1)), maxRange).Draw(me.Position);
             }
+
         }
 
         private static void OnProcCast(Obj_AI_Base sender, GameObjectProcessSpellCastEventArgs args)
         {
             if (!sender.IsMe) return;
 
+            if (args.SData.Name.Contains("ItemTiamatCleave"))
+            {
+                if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+                {
+                    var target = TargetSelector.SelectedTarget;
+                    R2.Cast(me.Position.Extend(target, R2.Range).To3D());
+                    ForceR2(true);
+                }
+            }
+
             if (args.SData.Name.Contains("ItemTiamatCleave")) forceItem = false;
             if (args.SData.Name.Contains("RivenTriCleave")) forceQ = false;
             if (args.SData.Name.Contains("RivenMartyr")) forceW = false;
             if (args.SData.Name == "RivenFengShuiEngine") forceR = false;
             if (args.SData.Name == "RivenIzunaBlade") forceR2 = false;
-        }
-
-        public static double GetUltDamage(Obj_AI_Base target, double health)
-        {
-            if (target != null && target.IsValid)
-            {
-                var missinghealth = (target.MaxHealth - health) / target.MaxHealth > 0.75 ? 0.75 : (target.MaxHealth - health) / target.MaxHealth;
-                var pluspercent = missinghealth * 8 / 3;
-                var rawdmg = new double[] { 80, 120, 160 }[R.Level - 1] + 0.6 * me.FlatPhysicalDamageMod;
-                return me.CalculateDamageOnUnit(target, DamageType.Physical, (float)rawdmg * (float)(1 + pluspercent));
-            }
-            return 0;
         }
 
         private static void GameOnOnUpdate(EventArgs args)
@@ -133,10 +132,10 @@ namespace MoonyRiven
                 Q.Cast(me.Position);
             }
 
-            if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 Burst();
-
-            Combo();
+            else
+                Combo();
 
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Flee)
             {
@@ -147,15 +146,15 @@ namespace MoonyRiven
 
         private static void Combo()
         {
-            if (RivenMenu.menu["rDmgMethod"].Cast<ComboBox>().CurrentValue == 1 && IsSecondR && R.IsReady()) //max dmg
+            if (RivenMenu.ultimate["rDmgMethod"].Cast<ComboBox>().CurrentValue == 1 && IsSecondR && R.IsReady())
             {
                 int maxHitCount = 0;
                 Vector2 bestEndVec = Vector2.Zero;
-                for (int i = 0; i < 360; i++)
+                for (int i = 0; i < 360; i+= 20 - RivenMenu.ultimate["coneAngleStep"].Cast<Slider>().CurrentValue)
                 {
                     var endVec = PointOnCircle(i);
                     Geometry.Polygon Cone = CreateUltimateCone(endVec);
-                    int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid).Count(x => Cone.IsInside(x));
+                    int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(x => Cone.IsInside(x));
                     if (currentHits > maxHitCount)
                     {
                         maxHitCount = currentHits;
@@ -163,7 +162,7 @@ namespace MoonyRiven
                     }
                 }
 
-                if (bestEndVec != Vector2.Zero && maxHitCount >= RivenMenu.menu["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
+                if (bestEndVec != Vector2.Zero && maxHitCount >= RivenMenu.ultimate["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
                 {
                     ForceR2(bestEndVec);
                 }
@@ -173,19 +172,17 @@ namespace MoonyRiven
             if (target == null || !target.IsValid)
                 return;
 
-            
-
-            if (RivenMenu.menu["useR2.Combo"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange() + 70)
+            if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange() + 70)
             {
                 if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
-                        target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2.Combo"].Cast<CheckBox>().CurrentValue)
+                        Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                     ForceR2();
             }
 
             bool inCombo = Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo;
             bool targetOutOfAA = me.Distance(target.Position) > me.GetAutoAttackRange();
-            bool useEGap = E.IsReady() && RivenMenu.menu["gapE.Combo"].Cast<CheckBox>().CurrentValue;
-            bool useQGap = QStacks == 0 && RivenMenu.menu["gapQ1.Combo"].Cast<CheckBox>().CurrentValue;
+            bool useEGap = E.IsReady() && RivenMenu.combo["gapE.Combo"].Cast<CheckBox>().CurrentValue;
+            bool useQGap = QStacks == 0 && RivenMenu.combo["gapQ1.Combo"].Cast<CheckBox>().CurrentValue;
             if (inCombo && targetOutOfAA && useEGap)
                 E.Cast(target.Position);
             if (inCombo && targetOutOfAA && useQGap && !useEGap)
@@ -207,15 +204,24 @@ namespace MoonyRiven
             if (!sender.IsMe)
                 return;
 
-            if (args.SData.Name.Contains("ItemTiamatCleave") && !RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue && args.SData.Name.Contains("RivenMartyr"))
             {
-                Orbwalker.DisableMovement = true;
-                Core.RepeatAction(() =>
+                ForceItem();
+                Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
+            }
+
+            if (args.SData.Name.Contains("ItemTiamatCleave"))
+            {
+                if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 {
-                    Player.IssueOrder(GameObjectOrder.AttackTo, GetTarget());
-                }, (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90, 500);
-                Core.DelayAction(() => Orbwalker.DisableMovement = false, 
-                    (int)Orbwalker.AttackCastDelay * 1000 + Orbwalker.ExtraWindUpTime + 90 + 500);
+                    var target = TargetSelector.SelectedTarget;
+                    R2.Cast(me.Position.Extend(target, R2.Range).To3D());
+                    ForceR2();
+                }
+                else
+                if (GetTarget() != null && GetTarget().IsValid)
+                    Core.DelayAction(Orbwalker.ResetAutoAttack,
+                        300 + Game.Ping);
             }
 
             if (!args.IsAutoAttack())
@@ -407,11 +413,11 @@ namespace MoonyRiven
         static bool Enabled(string id)
         {
             return (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo &&
-                    RivenMenu.menu[id + ".Combo"].Cast<CheckBox>().CurrentValue) ||
+                    RivenMenu.combo[id + ".Combo"].Cast<CheckBox>().CurrentValue) ||
                    (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.LaneClear &&
-                    RivenMenu.menu[id + ".WaveClear"].Cast<CheckBox>().CurrentValue) ||
+                    RivenMenu.waveClear[id + ".WaveClear"].Cast<CheckBox>().CurrentValue) ||
                    (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.JungleClear &&
-                    RivenMenu.menu[id + ".JungleClear"].Cast<CheckBox>().CurrentValue);
+                    RivenMenu.jungleClear[id + ".JungleClear"].Cast<CheckBox>().CurrentValue);
         }
 
         /// <summary>
@@ -419,8 +425,8 @@ namespace MoonyRiven
         /// </summary>
         static Vector2 PointOnCircle(float angleInDegrees)
         {
-            float x = me.Position.X + (float)((R2.Range - 200) * Math.Cos(angleInDegrees * Math.PI / 180));
-            float y = me.Position.Y + (float)((R2.Range - 200) * Math.Sin(angleInDegrees * Math.PI / 180));
+            float x = me.Position.X + (float)(R2.Range * Math.Cos(angleInDegrees * Math.PI / 180));
+            float y = me.Position.Y + (float)(R2.Range * Math.Sin(angleInDegrees * Math.PI / 180));
 
             return new Vector2(x, y);
         }
@@ -429,13 +435,13 @@ namespace MoonyRiven
         {
             Geometry.Polygon cone = new Geometry.Polygon();
             var edgePoint1 = endVec + (endVec - me.Position.To2D()).Perpendicular2().Normalized()*200;
-            var edgePoint2 = endVec + (endVec - me.Position.To2D()).Perpendicular().Normalized()*200;
+            //var edgePoint2 = endVec + (endVec - me.Position.To2D()).Perpendicular().Normalized()*200;
             cone.Points.Add(me.Position.To2D());
 
-            float angle1 = (edgePoint1 - me.Position.To2D()).AngleBetween(new Vector2(100, 0));
-            float angle2 = (edgePoint2 - me.Position.To2D()).AngleBetween(new Vector2(100, 0));
+            float angle1 = -(edgePoint1 - me.Position.To2D()).AngleBetween(new Vector2(100, 0));
+            float angle2 = -angle1;
 
-            for (float currentAngle = angle1; currentAngle <= angle2; currentAngle++)
+            for (int currentAngle = (int)angle1; currentAngle <= (int)angle2; currentAngle++)
             {
                 cone.Points.Add(PointOnCircle(currentAngle));
             }
@@ -448,25 +454,16 @@ namespace MoonyRiven
             /*set target*/
             Obj_AI_Base target = GetTarget();
 
-            if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
-            {
-                ForceCastQ(target);
-                return;
-            }
-
-
             if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
                 Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
                 return;
 
-            
-
             if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
-                    target.Health < GetUltDamage(target, target.Health) && RivenMenu.menu["useR2.Combo"].Cast<CheckBox>().CurrentValue)
+                    Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                 ForceR2();
 
-            if (RivenMenu.menu["useR1.Combo"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && Orbwalker.ActiveModesFlags ==
-                Orbwalker.ActiveModes.Combo)
+            if (RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && 
+                Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo)
             {
                 ForceR();
             }
@@ -522,7 +519,7 @@ namespace MoonyRiven
                         .OrderByDescending(x => x.MaxHealth).ToList();
                 target = Mobs.FirstOrDefault();
             }
-            if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 target = TargetSelector.SelectedTarget;
 
             return target;
@@ -578,36 +575,39 @@ namespace MoonyRiven
             if (!sender.IsMe)
                 return;
 
-            int QD = RivenMenu.menu["qDelay"].Cast<Slider>().CurrentValue, 
-                QLD = RivenMenu.menu["q3Delay"].Cast<Slider>().CurrentValue;
+            int QD = RivenMenu.misc["qDelay"].Cast<Slider>().CurrentValue, 
+                QLD = RivenMenu.misc["q3Delay"].Cast<Slider>().CurrentValue;
             bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
             switch (args.Animation)
             {
                 case "Spell1a":
+                    Dmg.Qstack = 2;
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QD * 10 + 1);
-                    else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
                         Core.DelayAction(ForceItem, QD * 10 + 1);
                     }
                     break;
                 case "Spell1b":
+                    Dmg.Qstack = 3;
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QD * 10 + 1);
-                    else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
                         Core.DelayAction(ForceItem, QD * 10 + 1);
                     }
                     break;
                 case "Spell1c":
+                    Dmg.Qstack = 1;
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QLD * 10 + 3);
-                    else if (RivenMenu.menu["burst"].Cast<KeyBind>().CurrentValue)
+                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
                         Core.DelayAction(ForceItem, QLD * 10 + 1);
                     }
@@ -620,6 +620,11 @@ namespace MoonyRiven
                             ForceItem();
                         if (Enabled("useQ"))
                             Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
+                    }
+                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+                    {
+                        ForceItem();
+                        Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
                     }
                     break;
                 case "Spell3":
@@ -658,6 +663,17 @@ namespace MoonyRiven
                 Core.DelayAction(() => forceR2 = false, 1500);
             }
         }
+
+        private static void ForceR2(bool burst)
+        {
+            if (GetTarget() != null)
+            {
+                R2ForcePos = me.Position.Extend(GetTarget(), 100);
+                forceR2 = true;
+                Core.DelayAction(() => forceR2 = false, 2000);
+            }
+        }
+
         private static void ForceW(bool burst = false)
         {
             forceW = W.IsReady(); 
@@ -676,34 +692,43 @@ namespace MoonyRiven
         private static int LastE { get; set; }
 
         static int LastW { get; set; }
-        private static void Burst()
+        static void Burst()
         {
+            var target = TargetSelector.SelectedTarget;
             Orbwalker.OrbwalkTo(Game.CursorPos);
 
-            var target = TargetSelector.SelectedTarget;
-            if (target == null || !target.IsValidTarget() || target.IsZombie || target.IsDead)
+            if (Orbwalker.CanAutoAttack && me.IsInAutoAttackRange(target))
+                Player.IssueOrder(GameObjectOrder.AttackUnit, target);
+
+            if (target == null || !target.IsValidTarget() || target.IsZombie || target.IsInvulnerable) return;
+
+            if (Flash.IsReady())
             {
-                return;
-            }
+                if (me.Distance(target.Position) > 700 || me.Distance(target) < E.Range + me.AttackRange) return;
 
-            bool distTooHigh = Flash.IsReady()
-                ? me.Distance(target.Position) > 350 + 425 : me.Distance(target.Position) > 350;
-            bool needFlash = me.Distance(target.Position) > 350 && me.Distance(target.Position) < 350 + 425;
+                if (!R.IsReady() || !E.IsReady() || !W.IsReady() || !IsFirstR) return;
 
-            if (needFlash && !distTooHigh)
-                Flash.Cast(me.Position.Extend(target, Flash.Range).To3D());
-
-            if (R.IsReady() && IsFirstR && E.IsReady() && W.IsReady() && Q.IsReady() && !distTooHigh)
-            {
                 E.Cast(target.Position);
                 ForceR();
-                Core.DelayAction(() => ForceCastQ(target), 150);
-                Core.DelayAction(() => ForceW(true), 151);
+                Core.DelayAction(() =>
+                {
+                    var targett = TargetSelector.SelectedTarget;
+                    if (targett != null && target.IsValidTarget() && !target.IsZombie)
+                    {
+                        Core.DelayAction(() => Flash.Cast(me.Position.Extend(targett, Flash.Range).To3D()), 10);
+                    }
+                }, 180);
             }
-
-            if (!ItemReady)
+            else
             {
-                R2.Cast(me.Position.Extend(GetTarget().ServerPosition, 100).To3D());
+                if (me.Distance(target) > E.Range + me.AttackRange) return;
+
+                if (E.IsReady())//&& R.IsReady()
+                {
+                    E.Cast(target.ServerPosition);
+                    ForceR();
+                    Core.DelayAction(() => ForceW(true), 160);
+                }
             }
         }
     }
