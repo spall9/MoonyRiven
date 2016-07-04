@@ -27,9 +27,9 @@ namespace MoonyRiven
             ultimate = menu.AddSubMenu("Ultimate", "moonyRivenUltimate");
             ultimate.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage or Killable"));
             ultimate.AddSeparator();
-            ultimate.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 3, 2, 5));
+            ultimate.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 1, 1, 5));
             ultimate.AddSeparator();
-            ultimate.Add("coneAngleStep", new Slider("MaxDamage searching accuracy", 10, 0, 20));
+            ultimate.Add("coneAngleStep", new Slider("MaxDamage searching accuracy", 3, 0, 20));
             ultimate.AddLabel("Reduce this value to get more FPS");
 
             waveClear = menu.AddSubMenu("WaveClear", "moonyRivenWC");
@@ -47,10 +47,15 @@ namespace MoonyRiven
             drawings = menu.AddSubMenu("Drawings", "moonyRivenDrawings");
             drawings.Add("drawBurst", new CheckBox("Draw burst range"));
             drawings.Add("drawRExpire", new CheckBox("Draw R expiry"));
+            drawings.Add("drawUltimateCone", new CheckBox("Draw Ultimate Cone"));
+            drawings.AddLabel("Disable to achieve more fps");
+            drawings.Add("debugDraw", new CheckBox("Debug Mode"));
 
             misc = menu.AddSubMenu("Misc", "moonyRivenMisc");
-            misc.Add("qDelay", new Slider("Q cancel delay", 29, 20, 100));
-            misc.Add("q3Delay", new Slider("Q3 cancel delay", 42, 20, 100));
+            misc.Add("qDelay", new Slider("AA reset delay after Q", 29, 20, 100));
+            misc.Add("q3Delay", new Slider("AA reset delay after Q3", 42, 20, 100));
+            misc.Add("itemDelay", new Slider("AA reset delay after Tiamat/Hydra", 300, 250, 500));
+            misc.Add("wDelay", new Slider("AA reset delay after W if aa possible", 528, 500, 600));
             misc.Add("antiGapW", new CheckBox("AntiGapcloser W"));
         }
     }

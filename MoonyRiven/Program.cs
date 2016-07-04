@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using EloBuddy;
@@ -59,7 +60,15 @@ namespace MoonyRiven
                 Game.OnUpdate += GameOnOnUpdate;
                 Drawing.OnDraw += DrawingOnOnDraw;
                 Gapcloser.OnGapcloser += GapcloserOnOnGapcloser;
+                Game.OnWndProc += GameOnOnWndProc;
             };
+        }
+
+        private static void GameOnOnWndProc(WndEventArgs args)
+        {
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue && Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo &&
+                args.WParam == 0x0101)
+                Orbwalker.ActiveModesFlags = Orbwalker.ActiveModes.None;
         }
 
         private static void GapcloserOnOnGapcloser(AIHeroClient sender, Gapcloser.GapcloserEventArgs gapcloserEventArgs)
@@ -71,33 +80,56 @@ namespace MoonyRiven
                 W.Cast();
         }
 
+        private static bool drawException;
         private static void DrawingOnOnDraw(EventArgs args)
         {
-            bool useR1 = RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue;
-            var heropos = Drawing.WorldToScreen(ObjectManager.Player.Position);
-            Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
-            Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red, useR1 ? "On" : "Off");
-
-            if (me.Level > 5)
-            if (IsSecondR && RivenMenu.drawings["drawRExpire"].Cast<CheckBox>().CurrentValue)
+            try
             {
-                float rCD_Sec = (15000 - (float)(Environment.TickCount - LastR))/1000;
-                string rCd_Str = rCD_Sec.ToString("0.0");
+                bool useR1 = RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue;
+                var heropos = Drawing.WorldToScreen(ObjectManager.Player.Position);
+                Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
+                Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red,
+                    useR1 ? "On" : "Off");
 
-                Text rCdText = new Text(rCd_Str, new Font("Gill Sans MT Pro Book", 20f, FontStyle.Bold))
+                if (me.Level > 5)
+                    if (IsSecondR && RivenMenu.drawings["drawRExpire"].Cast<CheckBox>().CurrentValue)
+                    {
+                        float rCD_Sec = (15000 - (float) (Environment.TickCount - LastR))/1000;
+                        string rCd_Str = rCD_Sec.ToString("0.0");
+
+                        Text rCdText = new Text(rCd_Str, new Font("Gill Sans MT Pro Book", 20f, FontStyle.Bold))
+                        {
+                            Color = rCD_Sec <= 5 && rCD_Sec > 2 ? Color.DarkOrange : Color.Red
+                        };
+                        rCdText.Position = heropos - new Vector2((float) rCdText.Bounding.Width/2, -100);
+
+                        if (rCD_Sec <= 5 && rCD_Sec > 0)
+                            rCdText.Draw();
+                    }
+
+                if (RivenMenu.drawings["drawBurst"].Cast<CheckBox>().CurrentValue)
                 {
-                    Color = rCD_Sec <= 5 && rCD_Sec > 2 ? Color.DarkOrange : Color.Red
-                };
-                rCdText.Position = heropos - new Vector2((float) rCdText.Bounding.Width/2, -100);
+                    float maxRange = !Flash.IsReady()
+                        ? E.Range + me.GetAutoAttackRange(TargetSelector.SelectedTarget)
+                        : 700;
+                    new Circle(new ColorBGRA(new Vector4(255, 0, 0, 1)), maxRange).Draw(me.Position);
+                }
 
-                if (rCD_Sec <= 5 && rCD_Sec > 0)
-                    rCdText.Draw();
+                if (RivenMenu.drawings["drawUltimateCone"].Cast<CheckBox>().CurrentValue)
+                {
+                    UltimateCone.Draw();
+                }
             }
-
-            if (RivenMenu.drawings["drawBurst"].Cast<CheckBox>().CurrentValue)
+            catch
             {
-                float maxRange = !Flash.IsReady() ? E.Range + me.GetAutoAttackRange(TargetSelector.SelectedTarget) : 700;
-                new Circle(new ColorBGRA(new Vector4(255, 0, 0, 1)), maxRange).Draw(me.Position);
+                if (!drawException && Game.Time <= 50)
+                {
+                    drawException = true;
+                    for (int i = 0; i < 5; i++)
+                    {
+                        Chat.Print("Please reload the addons");
+                    }
+                }
             }
 
         }
@@ -112,7 +144,7 @@ namespace MoonyRiven
                 {
                     var target = TargetSelector.SelectedTarget;
                     R2.Cast(me.Position.Extend(target, R2.Range).To3D());
-                    ForceR2(true);
+                    ForceR2();
                 }
             }
 
@@ -146,31 +178,24 @@ namespace MoonyRiven
 
         private static void Combo()
         {
-            if (RivenMenu.ultimate["rDmgMethod"].Cast<ComboBox>().CurrentValue == 1 && IsSecondR && R.IsReady())
+            bool checkForUltimateCone = RivenMenu.ultimate["rDmgMethod"].Cast<ComboBox>().CurrentValue == 1 && IsSecondR &&
+                                        R.IsReady();
+            if (checkForUltimateCone || RivenMenu.drawings["debugDraw"].Cast<CheckBox>().CurrentValue)
             {
-                int maxHitCount = 0;
-                Vector2 bestEndVec = Vector2.Zero;
-                for (int i = 0; i < 360; i+= 20 - RivenMenu.ultimate["coneAngleStep"].Cast<Slider>().CurrentValue)
-                {
-                    var endVec = PointOnCircle(i);
-                    Geometry.Polygon Cone = CreateUltimateCone(endVec);
-                    int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(x => Cone.IsInside(x));
-                    if (currentHits > maxHitCount)
-                    {
-                        maxHitCount = currentHits;
-                        bestEndVec = endVec;
-                    }
-                }
-
-                if (bestEndVec != Vector2.Zero && maxHitCount >= RivenMenu.ultimate["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
-                {
-                    ForceR2(bestEndVec);
-                }
+                CheckUltimateHits();
             }
 
+            bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
+                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
+                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
             var target = GetTarget();
-            if (target == null || !target.IsValid)
+            if (target == null || !target.IsValid || !inFightMode)
                 return;
+
+            bool useW = InWRange(target) && W.IsReady() && Orbwalker.CanAutoAttack
+                && RivenMenu.combo["useW.Combo"].Cast<CheckBox>().CurrentValue;
+            if (useW)
+                ForceW();
 
             if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange() + 70)
             {
@@ -178,15 +203,61 @@ namespace MoonyRiven
                         Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                     ForceR2();
             }
-
-            bool inCombo = Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo;
+            
             bool targetOutOfAA = me.Distance(target.Position) > me.GetAutoAttackRange();
             bool useEGap = E.IsReady() && RivenMenu.combo["gapE.Combo"].Cast<CheckBox>().CurrentValue;
             bool useQGap = QStacks == 0 && RivenMenu.combo["gapQ1.Combo"].Cast<CheckBox>().CurrentValue;
-            if (inCombo && targetOutOfAA && useEGap)
+
+            if (targetOutOfAA && useEGap && !useW)
                 E.Cast(target.Position);
-            if (inCombo && targetOutOfAA && useQGap && !useEGap)
+            if (targetOutOfAA && useQGap && !useEGap && !useW)
                 ForceCastQ(target);
+        }
+
+        private static void CheckUltimateHits()
+        {
+            int maxHitCount = 0;
+            Vector2 bestEndVec = Vector2.Zero;
+            Geometry.Polygon BestCone = null;
+
+            List<Vector2> hitPositions = new List<Vector2>();
+
+            for (int i = 0; i < 360; i += 21 - RivenMenu.ultimate["coneAngleStep"].Cast<Slider>().CurrentValue)
+            {
+                var endVec = PointOnCircle(i);
+                Geometry.Polygon Cone = CreateUltimateCone(endVec);
+
+                int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(
+                    x =>
+                    {
+                        int rSpeed = 1000;
+                        var pred = Prediction.Position.PredictUnitPosition(x, (int)x.Distance(me) / rSpeed * 1000);
+
+                        if (Cone.IsInside(pred))
+                            hitPositions.Add(pred);
+
+                        return Cone.IsInside(pred);
+                    });
+                if (currentHits > maxHitCount)
+                {
+                    maxHitCount = currentHits;
+                    bestEndVec = endVec;
+
+                    BestCone = Cone;
+                }
+            }
+
+            if (bestEndVec != Vector2.Zero &&
+                maxHitCount >= RivenMenu.ultimate["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
+            {
+                UltimateCone.LastBestCone = BestCone;
+                UltimateCone.LastPredictedInsidePositions = hitPositions;
+
+                if (IsSecondR && R.IsReady())
+                {
+                    ForceR2(me.Position.Extend(bestEndVec, 100));
+                }
+            }
         }
 
         private static bool InWRange(GameObject target)
@@ -194,7 +265,7 @@ namespace MoonyRiven
             if (target == null || !target.IsValid)
                 return false;
 
-            return me.HasBuff("RivenFengShuiEngine") 
+            return me.HasBuff("RivenFengShuiEngine")
                 ? me.Distance(target.Position) <= 330
                 : me.Distance(target.Position) <= 265;
         }
@@ -204,28 +275,16 @@ namespace MoonyRiven
             if (!sender.IsMe)
                 return;
 
-            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue && args.SData.Name.Contains("RivenMartyr"))
-            {
-                ForceItem();
-                Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
-            }
-
             if (args.SData.Name.Contains("ItemTiamatCleave"))
             {
-                if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-                {
-                    var target = TargetSelector.SelectedTarget;
-                    R2.Cast(me.Position.Extend(target, R2.Range).To3D());
-                    ForceR2();
-                }
-                else
-                if (GetTarget() != null && GetTarget().IsValid)
-                    Core.DelayAction(Orbwalker.ResetAutoAttack,
-                        300 + Game.Ping);
+                HandleTiamatCast();
             }
 
             if (!args.IsAutoAttack())
                 return;
+
+            if (Orbwalker.DisableMovement)
+                Orbwalker.DisableMovement = false;
 
             ExecuteSpellsAfterAA();
 
@@ -410,6 +469,27 @@ namespace MoonyRiven
             }
         }
 
+        private static void HandleTiamatCast()
+        {
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+            {
+                var target = TargetSelector.SelectedTarget;
+                R2.Cast(me.Position.Extend(target, R2.Range).To3D());
+                ForceR2();
+            }
+            else if (GetTarget() != null && GetTarget().IsValid)
+            {
+                Orbwalker.DisableMovement = true;
+                Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackUnit, GetTarget()),
+                    RivenMenu.misc["itemDelay"].Cast<Slider>().CurrentValue + Game.Ping);
+                Core.RepeatAction(() =>
+                {
+                    if ((GetTarget() == null || GetTarget().Distance(me) > me.GetAutoAttackRange()) && Orbwalker.DisableMovement)
+                        Orbwalker.DisableMovement = false;
+                }, 0, 1000);
+            }
+        }
+
         static bool Enabled(string id)
         {
             return (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo &&
@@ -431,19 +511,27 @@ namespace MoonyRiven
             return new Vector2(x, y);
         }
 
+        static Vector2 RotateAroundPoint(Vector2 center, Vector2 vec, float theta)
+        {
+            float px = vec.X, py = vec.Y;
+            float ox = center.X, oy = center.Y;
+
+            float x = (float)Math.Cos(theta)*(px - ox) - (float)Math.Sin(theta)*(py - oy) + ox;
+            float y = (float)Math.Sin(theta)*(px - ox) + (float)Math.Cos(theta)*(py - oy) + oy;
+            return new Vector2(x,y);
+        }
+
         static Geometry.Polygon CreateUltimateCone(Vector2 endVec)
         {
             Geometry.Polygon cone = new Geometry.Polygon();
-            var edgePoint1 = endVec + (endVec - me.Position.To2D()).Perpendicular2().Normalized()*200;
+            var edgePoint1 = endVec + (endVec - me.Position.To2D()).Perpendicular2().Normalized() * 200;
             //var edgePoint2 = endVec + (endVec - me.Position.To2D()).Perpendicular().Normalized()*200;
             cone.Points.Add(me.Position.To2D());
 
-            float angle1 = -(edgePoint1 - me.Position.To2D()).AngleBetween(new Vector2(100, 0));
-            float angle2 = -angle1;
-
-            for (int currentAngle = (int)angle1; currentAngle <= (int)angle2; currentAngle++)
+            for (int currentAngle = 0; currentAngle <= 40; currentAngle += 1)
             {
-                cone.Points.Add(PointOnCircle(currentAngle));
+                var newP = RotateAroundPoint(me.Position.To2D(), edgePoint1, currentAngle* ((float)Math.PI/180));
+                cone.Points.Add(newP);
             }
 
             return cone;
@@ -454,15 +542,22 @@ namespace MoonyRiven
             /*set target*/
             Obj_AI_Base target = GetTarget();
 
-            if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
-                Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+            {
+                ForceItem(true);
+                Core.DelayAction(() => ForceCastQ(target), 1);
                 return;
+            }
+
+            if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
+            Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
+            return;
 
             if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
                     Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                 ForceR2();
 
-            if (RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() && 
+            if (RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() &&
                 Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo)
             {
                 ForceR();
@@ -485,7 +580,7 @@ namespace MoonyRiven
                 {
                     E.Cast(target.Position);
                     if (castItem)
-                        Core.DelayAction(ForceItem, 10);
+                        Core.DelayAction(() => ForceItem(), 10);
 
                     Core.DelayAction(() => ForceW(), 240);
                 }
@@ -550,11 +645,7 @@ namespace MoonyRiven
             if (forceItem && Tiamat.IsOwned() && Tiamat.IsReady()) Tiamat.Cast();
             if (forceR2 && IsSecondR)
             {
-                var target = GetTarget();
-                if (target != null && target.IsValid && !target.IsDead)
-                {
-                    R2.Cast(R2ForcePos.To3D());
-                }
+                R2.Cast(R2ForcePos.To3D());
             }
         }
 
@@ -569,13 +660,13 @@ namespace MoonyRiven
         {
             get { return (Hydra.IsOwned() && Hydra.IsReady()) || (Tiamat.IsOwned() && Tiamat.IsReady()); }
         }
-        
+
         private static void ObjAiBaseOnOnPlayAnimation(Obj_AI_Base sender, GameObjectPlayAnimationEventArgs args)
         {
             if (!sender.IsMe)
                 return;
 
-            int QD = RivenMenu.misc["qDelay"].Cast<Slider>().CurrentValue, 
+            int QD = RivenMenu.misc["qDelay"].Cast<Slider>().CurrentValue,
                 QLD = RivenMenu.misc["q3Delay"].Cast<Slider>().CurrentValue;
             bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
@@ -589,7 +680,7 @@ namespace MoonyRiven
                         Core.DelayAction(Reset, QD * 10 + 1);
                     else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
-                        Core.DelayAction(ForceItem, QD * 10 + 1);
+                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
                     }
                     break;
                 case "Spell1b":
@@ -599,7 +690,7 @@ namespace MoonyRiven
                         Core.DelayAction(Reset, QD * 10 + 1);
                     else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
-                        Core.DelayAction(ForceItem, QD * 10 + 1);
+                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
                     }
                     break;
                 case "Spell1c":
@@ -609,7 +700,7 @@ namespace MoonyRiven
                         Core.DelayAction(Reset, QLD * 10 + 3);
                     else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
-                        Core.DelayAction(ForceItem, QLD * 10 + 1);
+                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
                     }
                     break;
                 case "Spell2":
@@ -618,13 +709,15 @@ namespace MoonyRiven
                     {
                         if (Enabled("useItem"))
                             ForceItem();
-                        if (Enabled("useQ"))
+                        bool canAA = Orbwalker.CanAutoAttack;
+                        if (Enabled("useQ") && !canAA && Q.IsReady())
                             Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
+                        else if (canAA)
+                            Core.DelayAction(Reset, RivenMenu.misc["wDelay"].Cast<Slider>().CurrentValue);
                     }
                     else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                     {
-                        ForceItem();
-                        Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
+                        Core.DelayAction(Reset, RivenMenu.misc["wDelay"].Cast<Slider>().CurrentValue - 200);
                     }
                     break;
                 case "Spell3":
@@ -638,14 +731,16 @@ namespace MoonyRiven
                 case "Spell4b":
                     var target = TargetSelector.SelectedTarget;
                     if (Q.IsReady() && target.IsValidTarget()) ForceCastQ(target);
+                    if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+                        Core.DelayAction(() => Orbwalker.ActiveModesFlags = Orbwalker.ActiveModes.Combo, 200);
                     break;
             }
         }
 
-        private static void ForceItem()
+        private static void ForceItem(bool burst = false)
         {
             forceItem = true;
-            Core.DelayAction(() => forceItem = false, 500);
+            Core.DelayAction(() => forceItem = false, !burst ? 500 : 2000);
         }
         private static void ForceR()
         {
@@ -656,7 +751,8 @@ namespace MoonyRiven
         private static Vector2 R2ForcePos;
         private static void ForceR2(Vector2 pos = new Vector2())
         {
-            if (GetTarget() != null)
+            bool gotTarget = GetTarget() != null && !GetTarget().IsDead && GetTarget().IsValid;
+            if (gotTarget || pos != new Vector2())
             {
                 R2ForcePos = pos == new Vector2() ? me.Position.Extend(GetTarget(), 100) : pos;
                 forceR2 = R.IsReady() && IsSecondR;
@@ -664,19 +760,9 @@ namespace MoonyRiven
             }
         }
 
-        private static void ForceR2(bool burst)
-        {
-            if (GetTarget() != null)
-            {
-                R2ForcePos = me.Position.Extend(GetTarget(), 100);
-                forceR2 = true;
-                Core.DelayAction(() => forceR2 = false, 2000);
-            }
-        }
-
         private static void ForceW(bool burst = false)
         {
-            forceW = W.IsReady(); 
+            forceW = W.IsReady();
             Core.DelayAction(() => forceW = false, burst ? 1000 : 500);
         }
 
@@ -715,19 +801,22 @@ namespace MoonyRiven
                     var targett = TargetSelector.SelectedTarget;
                     if (targett != null && target.IsValidTarget() && !target.IsZombie)
                     {
-                        Core.DelayAction(() => Flash.Cast(me.Position.Extend(targett, Flash.Range).To3D()), 10);
+                        Core.DelayAction(() => 
+                        Flash.Cast(targett.Distance(me) >= Flash.Range ? 
+                                me.Position.Extend(targett, Flash.Range).To3D() : targett.Position), 10);
+                        Core.DelayAction(() => ForceW(), 170);
                     }
                 }, 180);
             }
             else
             {
-                if (me.Distance(target) > E.Range + me.AttackRange) return;
+                if (me.Distance(target) > E.Range) return;
 
                 if (E.IsReady())//&& R.IsReady()
                 {
                     E.Cast(target.ServerPosition);
                     ForceR();
-                    Core.DelayAction(() => ForceW(true), 160);
+                    Core.DelayAction(() => ForceW(), 160);
                 }
             }
         }
