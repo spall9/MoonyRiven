@@ -141,17 +141,12 @@ namespace MoonyRiven
             bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
-            bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
-            if (args.SData.Name.Contains("RivenMartyr") && (inFightMode || inBurstMode))
+            if (args.SData.Name.Contains("RivenMartyr") && inFightMode && Enabled("useQ") && Q.IsReady())
             {
-                bool canAA = Orbwalker.CanAutoAttack;
-                if ((Enabled("useQ") && !canAA && Q.IsReady()) || inBurstMode)
-                {
-                    ForceItem();
-                    Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
-                }
+                ForceItem();
             }
 
+            bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
             if (inBurstMode && args.SData.Name.Contains("ItemTiamatCleave"))
             {
                 var target = TargetSelector.SelectedTarget;
@@ -290,7 +285,7 @@ namespace MoonyRiven
             {
                 HandleTiamatCast();
             }
-            else if (args.SData.Name.Contains("RivenMartyr") && Enabled("useW"))
+            else if (args.SData.Name.Contains("RivenMartyr"))
             {
                 ForceAA();
             }
@@ -549,6 +544,14 @@ namespace MoonyRiven
         {
             /*set target*/
             Obj_AI_Base target = GetTarget();
+
+            bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
+            if (inBurstMode)
+            {
+                ForceItem(true);
+                Core.DelayAction(() => ForceCastQ(target), 100);
+                return;
+            }
 
             if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
             Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
