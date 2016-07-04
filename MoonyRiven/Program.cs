@@ -138,18 +138,29 @@ namespace MoonyRiven
         {
             if (!sender.IsMe) return;
 
-            if (args.SData.Name.Contains("ItemTiamatCleave"))
+            bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
+                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
+                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
+            bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
+            if (args.SData.Name.Contains("RivenMartyr") && (inFightMode || inBurstMode))
             {
-                if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
+                bool canAA = Orbwalker.CanAutoAttack;
+                if ((Enabled("useQ") && !canAA && Q.IsReady()) || inBurstMode)
                 {
-                    var target = TargetSelector.SelectedTarget;
-                    R2.Cast(me.Position.Extend(target, R2.Range).To3D());
-                    ForceR2();
+                    ForceItem();
+                    Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
                 }
             }
 
+            if (inBurstMode && args.SData.Name.Contains("ItemTiamatCleave"))
+            {
+                var target = TargetSelector.SelectedTarget;
+                R2.Cast(me.Position.Extend(target, R2.Range).To3D());
+                ForceR2();
+            }
+
             if (args.SData.Name.Contains("ItemTiamatCleave")) forceItem = false;
-            if (args.SData.Name.Contains("RivenTriCleave")) forceQ = false;
+            if (args.SData.Name.Contains("RivenTriCleave")) { forceQ = false;}
             if (args.SData.Name.Contains("RivenMartyr")) forceW = false;
             if (args.SData.Name == "RivenFengShuiEngine") forceR = false;
             if (args.SData.Name == "RivenIzunaBlade") forceR2 = false;
@@ -542,13 +553,6 @@ namespace MoonyRiven
             /*set target*/
             Obj_AI_Base target = GetTarget();
 
-            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-            {
-                ForceItem(true);
-                Core.DelayAction(() => ForceCastQ(target), 1);
-                return;
-            }
-
             if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
             Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
             return;
@@ -588,7 +592,7 @@ namespace MoonyRiven
                 {
                     if (castItem)
                         ForceItem();
-                    Core.DelayAction(() => ForceCastQ(target), 1);
+                    Core.DelayAction(() => ForceCastQ(target), 100);
                 }
                 else if (castE)
                     E.Cast(target.ServerPosition);
@@ -678,46 +682,26 @@ namespace MoonyRiven
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QD * 10 + 1);
-                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-                    {
-                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
-                    }
                     break;
                 case "Spell1b":
                     Dmg.Qstack = 3;
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QD * 10 + 1);
-                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-                    {
-                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
-                    }
                     break;
                 case "Spell1c":
                     Dmg.Qstack = 1;
                     LastQ = Environment.TickCount;
                     if (inFightMode)
                         Core.DelayAction(Reset, QLD * 10 + 3);
-                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-                    {
-                        Core.DelayAction(() => ForceItem(true), QLD * 10 + 1);
-                    }
                     break;
                 case "Spell2":
                     LastW = Environment.TickCount;
                     if (inFightMode)
                     {
-                        if (Enabled("useItem"))
-                            ForceItem();
                         bool canAA = Orbwalker.CanAutoAttack;
-                        if (Enabled("useQ") && !canAA && Q.IsReady())
-                            Core.DelayAction(() => ForceCastQ(GetTarget()), 1);
-                        else if (canAA)
+                        if (canAA)
                             Core.DelayAction(Reset, RivenMenu.misc["wDelay"].Cast<Slider>().CurrentValue);
-                    }
-                    else if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
-                    {
-                        Core.DelayAction(Reset, RivenMenu.misc["wDelay"].Cast<Slider>().CurrentValue - 200);
                     }
                     break;
                 case "Spell3":
@@ -803,7 +787,7 @@ namespace MoonyRiven
                         Core.DelayAction(() => 
                         Flash.Cast(targett.Distance(me) >= Flash.Range ? 
                                 me.Position.Extend(targett, Flash.Range).To3D() : targett.Position), 10);
-                        Core.DelayAction(() => ForceW(), 170);
+                        Core.RepeatAction(() => ForceW(), 170, 1000);
                     }
                 }, 180);
             }
@@ -811,11 +795,11 @@ namespace MoonyRiven
             {
                 if (me.Distance(target) > E.Range) return;
 
-                if (E.IsReady())//&& R.IsReady()
+                if (E.IsReady() && R.IsReady())
                 {
                     E.Cast(target.ServerPosition);
                     ForceR();
-                    Core.DelayAction(() => ForceW(), 160);
+                    Core.RepeatAction(() => ForceW(), 160, 1000);
                 }
             }
         }
