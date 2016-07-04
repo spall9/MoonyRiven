@@ -491,13 +491,13 @@ namespace MoonyRiven
             else if (GetTarget() != null && GetTarget().IsValid)
             {
                 Orbwalker.DisableMovement = true;
-                Core.DelayAction(() => Player.IssueOrder(GameObjectOrder.AttackUnit, GetTarget()),
-                    RivenMenu.misc["itemDelay"].Cast<Slider>().CurrentValue + Game.Ping);
                 Core.RepeatAction(() =>
                 {
                     if ((GetTarget() == null || GetTarget().Distance(me) > me.GetAutoAttackRange()) && Orbwalker.DisableMovement)
                         Orbwalker.DisableMovement = false;
-                }, 0, 1000);
+                    else
+                        Player.IssueOrder(GameObjectOrder.AttackUnit, GetTarget());
+                },0, 1000);
             }
         }
 
