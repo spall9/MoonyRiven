@@ -164,6 +164,7 @@ namespace MoonyRiven
             if (args.SData.Name.Contains("RivenMartyr")) forceW = false;
             if (args.SData.Name == "RivenFengShuiEngine") forceR = false;
             if (args.SData.Name == "RivenIzunaBlade") forceR2 = false;
+            if (args.SData.IsAutoAttack()) ;
         }
 
         private static void GameOnOnUpdate(EventArgs args)
@@ -203,8 +204,7 @@ namespace MoonyRiven
             if (target == null || !target.IsValid || !inFightMode)
                 return;
 
-            bool useW = InWRange(target) && W.IsReady() && Orbwalker.CanAutoAttack
-                && RivenMenu.combo["useW.Combo"].Cast<CheckBox>().CurrentValue;
+            bool useW = InWRange(target) && W.IsReady() && Enabled("useW");
             if (useW)
                 ForceW();
 
@@ -289,6 +289,10 @@ namespace MoonyRiven
             if (args.SData.Name.Contains("ItemTiamatCleave"))
             {
                 HandleTiamatCast();
+            }
+            else if (args.SData.Name.Contains("RivenMartyr") && Enabled("useW"))
+            {
+                ForceAA();
             }
 
             if (!args.IsAutoAttack())
@@ -490,14 +494,7 @@ namespace MoonyRiven
             }
             else if (GetTarget() != null && GetTarget().IsValid)
             {
-                Orbwalker.DisableMovement = true;
-                Core.RepeatAction(() =>
-                {
-                    if ((GetTarget() == null || GetTarget().Distance(me) > me.GetAutoAttackRange()) && Orbwalker.DisableMovement)
-                        Orbwalker.DisableMovement = false;
-                    else
-                        Player.IssueOrder(GameObjectOrder.AttackUnit, GetTarget());
-                },0, 1000);
+                ForceAA();
             }
         }
 
@@ -574,13 +571,7 @@ namespace MoonyRiven
 
             if (target != null && target.IsValid)
             {
-                if (InWRange(target) && castW)
-                {
-                    if (castItem && ItemReady)
-                        ForceItem();
-                    Core.DelayAction(() => W.Cast(), 1);
-                }
-                else if (W.IsReady() && E.IsReady() && !InWRange(target) && me.Distance(target) < E.Range && castW && castE)
+                if (W.IsReady() && E.IsReady() && !InWRange(target) && me.Distance(target) < E.Range && castW && castE)
                 {
                     E.Cast(target.Position);
                     if (castItem)
@@ -701,12 +692,6 @@ namespace MoonyRiven
                     break;
                 case "Spell2":
                     LastW = Environment.TickCount;
-                    if (inFightMode)
-                    {
-                        bool canAA = Orbwalker.CanAutoAttack;
-                        if (canAA)
-                            Core.DelayAction(Reset, RivenMenu.misc["wDelay"].Cast<Slider>().CurrentValue);
-                    }
                     break;
                 case "Spell3":
                     LastE = Environment.TickCount;
@@ -746,6 +731,13 @@ namespace MoonyRiven
                 forceR2 = R.IsReady() && IsSecondR;
                 Core.DelayAction(() => forceR2 = false, 1500);
             }
+        }
+
+        static void ForceAA()
+        {
+            Player.DoEmote(Emote.Dance);
+            Orbwalker.ResetAutoAttack();
+            Player.IssueOrder(GameObjectOrder.MoveTo, me.Position.Extend(Game.CursorPos, me.Distance(Game.CursorPos) + 10).To3D());
         }
 
         private static void ForceW(bool burst = false)
