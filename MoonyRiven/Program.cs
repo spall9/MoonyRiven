@@ -782,11 +782,10 @@ namespace MoonyRiven
         {
             var target = TargetSelector.SelectedTarget;
             Orbwalker.OrbwalkTo(Game.CursorPos);
+            if (target == null || !target.IsValidTarget() || target.IsZombie || target.IsInvulnerable) return;
 
             if (Orbwalker.CanAutoAttack && me.IsInAutoAttackRange(target))
-                Player.IssueOrder(GameObjectOrder.AttackUnit, target);
-
-            if (target == null || !target.IsValidTarget() || target.IsZombie || target.IsInvulnerable) return;
+                Player.IssueOrder(GameObjectOrder.AttackUnit, target);          
 
             if (Flash.IsReady())
             {
