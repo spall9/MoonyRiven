@@ -54,8 +54,6 @@ namespace MoonyRiven
             misc = menu.AddSubMenu("Misc", "moonyRivenMisc");
             misc.Add("qDelay", new Slider("AA reset delay after Q", 29, 20, 100));
             misc.Add("q3Delay", new Slider("AA reset delay after Q3", 42, 20, 100));
-            misc.Add("itemDelay", new Slider("AA reset delay after Tiamat/Hydra", 300, 250, 500));
-            misc.Add("wDelay", new Slider("AA reset delay after W if aa possible", 500, 200, 600));
             misc.Add("antiGapW", new CheckBox("AntiGapcloser W"));
         }
     }

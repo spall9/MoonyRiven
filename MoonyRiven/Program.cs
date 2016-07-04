@@ -138,14 +138,6 @@ namespace MoonyRiven
         {
             if (!sender.IsMe) return;
 
-            bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
-                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
-                               Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
-            if (args.SData.Name.Contains("RivenMartyr") && inFightMode && Enabled("useQ") && Q.IsReady())
-            {
-                ForceItem();
-            }
-
             bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
             if (inBurstMode && args.SData.Name.Contains("ItemTiamatCleave"))
             {
@@ -200,7 +192,12 @@ namespace MoonyRiven
                 return;
 
             bool useW = InWRange(target) && W.IsReady() && Enabled("useW");
-            if (useW)
+            if (useW && ItemReady)
+            {
+                ForceItem();
+                Core.DelayAction(() => ForceW(), 100);
+            }
+            else if (useW)
                 ForceW();
 
             if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange() + 70)
