@@ -22,7 +22,7 @@ namespace MoonyRiven
             combo.Add("useR1.Combo", new KeyBind("Use R1", false, KeyBind.BindTypes.PressToggle));
             combo.Add("useR2.Combo", new CheckBox("Use R2"));
             menu.AddSeparator(10);
-            combo.Add("burst", new KeyBind("Burst Mode", false, KeyBind.BindTypes.HoldActive));
+            combo.Add("burst", new KeyBind("Shy Burst", false, KeyBind.BindTypes.HoldActive));
 
             ultimate = menu.AddSubMenu("Ultimate", "moonyRivenUltimate");
             ultimate.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage or Killable"));
