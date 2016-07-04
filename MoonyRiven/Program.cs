@@ -590,9 +590,13 @@ namespace MoonyRiven
                 }
                 else if (Q.IsReady() && castQ)
                 {
-                    if (castItem)
+                    if (castItem && ItemReady)
+                    {
                         ForceItem();
-                    Core.DelayAction(() => ForceCastQ(target), 100);
+                        Core.DelayAction(() => ForceCastQ(target), 100);
+                    }
+                    else
+                        ForceCastQ(target);
                 }
                 else if (castE)
                     E.Cast(target.ServerPosition);
