@@ -253,10 +253,10 @@ namespace MoonyRiven
             if (bestEndVec != Vector2.Zero &&
                 maxHitCount >= RivenMenu.ultimate["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
             {
-                UltimateCone.LastEndVec = RotateAroundPoint(me.Position.To2D(), bestEndVec, 8.5f*(float)(Math.PI/180));//small drawing correction
+                bestEndVec = RotateAroundPoint(me.Position.To2D(), bestEndVec, 8.5f * (float)(Math.PI / 180));//small correction
                 UltimateCone.LastBestCone = BestCone;
                 UltimateCone.LastPredictedInsidePositions = hitPositions;
-                bestEndVec = RotateAroundPoint(me.Position.To2D(), bestEndVec, 8.5f*(float)(Math.PI / 180));//small correction
+                UltimateCone.LastEndVec = bestEndVec;
 
                 if (IsSecondR && R.IsReady())
                 {

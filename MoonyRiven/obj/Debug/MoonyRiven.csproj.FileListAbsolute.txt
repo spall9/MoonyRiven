@@ -8,4 +8,3 @@ C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Debug\Newtonsoft.Json.dll
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\obj\Debug\MoonyRiven.exe
 C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\obj\Debug\MoonyRiven.pdb
-C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\obj\Debug\MoonyRiven.csprojResolveAssemblyReference.cache
