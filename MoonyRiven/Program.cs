@@ -233,8 +233,8 @@ namespace MoonyRiven
                 int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(
                     x =>
                     {
-                        int rSpeed = 1000;
-                        var pred = Prediction.Position.PredictUnitPosition(x, (int)x.Distance(me) / rSpeed * 1000);
+                        //int rSpeed = 1000;
+                        var pred = x.Position.To2D();//Prediction.Position.PredictUnitPosition(x, (int)x.Distance(me) / rSpeed * 1000);
 
                         if (Cone.IsInside(pred))
                             hitPositions.Add(pred);
@@ -253,8 +253,10 @@ namespace MoonyRiven
             if (bestEndVec != Vector2.Zero &&
                 maxHitCount >= RivenMenu.ultimate["rmaxDmgHitCount"].Cast<Slider>().CurrentValue)
             {
+                UltimateCone.LastEndVec = RotateAroundPoint(me.Position.To2D(), bestEndVec, 8.5f*(float)(Math.PI/180));//small drawing correction
                 UltimateCone.LastBestCone = BestCone;
                 UltimateCone.LastPredictedInsidePositions = hitPositions;
+                bestEndVec = RotateAroundPoint(me.Position.To2D(), bestEndVec, 8.5f*(float)(Math.PI / 180));//small correction
 
                 if (IsSecondR && R.IsReady())
                 {
@@ -287,13 +289,11 @@ namespace MoonyRiven
                 ForceAA();
             }
 
-            if (!args.IsAutoAttack())
-                return;
-
-            if (Orbwalker.DisableMovement)
+            if (Orbwalker.DisableMovement && args.IsAutoAttack())
                 Orbwalker.DisableMovement = false;
 
-            ExecuteSpellsAfterAA();
+            if (args.IsAutoAttack())
+                ExecuteSpellsAfterAA();
 
             if (!sender.IsEnemy || sender.Type != me.Type || Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit) return;
 
