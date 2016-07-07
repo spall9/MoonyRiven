@@ -188,7 +188,7 @@ namespace MoonyRiven
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
             var target = GetTarget();
-            if (target == null || !target.IsValid || !inFightMode)
+            if (target == null || !inFightMode)
                 return;
 
             bool useW = InWRange(target) && W.IsReady() && Enabled("useW");
@@ -484,7 +484,7 @@ namespace MoonyRiven
                 R2.Cast(me.Position.Extend(target, R2.Range).To3D());
                 ForceR2();
             }
-            else if (GetTarget() != null && GetTarget().IsValid)
+            else if (GetTarget() != null)
             {
                 ForceAA();
             }
@@ -541,6 +541,8 @@ namespace MoonyRiven
         {
             /*set target*/
             Obj_AI_Base target = GetTarget();
+            if (target == null)
+                return;
 
             bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
             if (inBurstMode)
@@ -615,6 +617,9 @@ namespace MoonyRiven
             }
             if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 target = TargetSelector.SelectedTarget;
+
+            if (target != null && (target.Equals(default(Obj_AI_Minion)) || !target.IsValid))
+                target = null;
 
             return target;
         }
@@ -724,7 +729,7 @@ namespace MoonyRiven
         private static Vector2 R2ForcePos;
         private static void ForceR2(Vector2 pos = new Vector2())
         {
-            bool gotTarget = GetTarget() != null && !GetTarget().IsDead && GetTarget().IsValid;
+            bool gotTarget = GetTarget() != null && !GetTarget().IsDead;
             if (gotTarget || pos != new Vector2())
             {
                 R2ForcePos = pos == new Vector2() ? me.Position.Extend(GetTarget(), 100) : pos;
