@@ -280,6 +280,15 @@ namespace MoonyRiven
             if (!sender.IsMe)
                 return;
 
+            bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
+            if (inBurstMode && args.SData.Name.Contains("ItemTiamatCleave"))
+            {
+                var target = TargetSelector.SelectedTarget;
+                R2.Cast(me.Position.Extend(target, R2.Range).To3D());
+                ForceR2();
+                return;
+            }
+
             if (args.SData.Name.Contains("ItemTiamatCleave"))
             {
                 HandleTiamatCast();
