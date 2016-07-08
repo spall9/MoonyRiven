@@ -233,13 +233,13 @@ namespace MoonyRiven
                 int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(
                     x =>
                     {
-                        //int rSpeed = 1000;
-                        var pred = x.Position.To2D();//Prediction.Position.PredictUnitPosition(x, (int)x.Distance(me) / rSpeed * 1000);
+                        var pred = R2.GetPrediction(x);
+                        bool inside = Cone.IsInside(pred.UnitPosition) && pred.HitChance >= HitChance.High;
 
-                        if (Cone.IsInside(pred))
-                            hitPositions.Add(pred);
+                        if (inside)
+                            hitPositions.Add(pred.CastPosition.To2D());
 
-                        return Cone.IsInside(pred);
+                        return inside;
                     });
                 if (currentHits > maxHitCount)
                 {
