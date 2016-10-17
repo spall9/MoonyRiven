@@ -159,7 +159,6 @@ namespace MoonyRiven
             if (args.SData.Name.Contains("RivenMartyr")) forceW = false;
             if (args.SData.Name == "RivenFengShuiEngine") forceR = false;
             if (args.SData.Name == "RivenIzunaBlade") forceR2 = false;
-            if (args.SData.IsAutoAttack()) ;
         }
 
         private static void GameOnOnUpdate(EventArgs args)
@@ -216,7 +215,7 @@ namespace MoonyRiven
 
             if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
             {
-                if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
+                if (!target.IsZombie && !target.IsDead && IsSecondR && R2.IsReady() &&
                         Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                     ForceR2();
             }
