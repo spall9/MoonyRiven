@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using EloBuddy;
 using EloBuddy.SDK;
 using EloBuddy.SDK.Constants;
@@ -14,6 +15,9 @@ using Color = System.Drawing.Color;
 
 namespace MoonyRiven
 {
+    /// <summary>
+    /// Note: Burst tries to execute besides normal combo
+    /// </summary>
     class Program
     {
         protected static Spell.Skillshot Q;
@@ -26,6 +30,7 @@ namespace MoonyRiven
         static Item Hydra;
         static Item Tiamat;
         private static readonly AIHeroClient me = ObjectManager.Player;
+        private static bool oldMenuValue;
 
         static int QStacks
         {
@@ -90,6 +95,9 @@ namespace MoonyRiven
                 Drawing.DrawText(heropos.X - 40, heropos.Y + 20, Color.LightBlue, "Always R  [        ]");
                 Drawing.DrawText(heropos.X + 40, heropos.Y + 20, useR1 ? Color.LightGreen : Color.Red,
                     useR1 ? "On" : "Off");
+
+                Drawing.DrawText(heropos.X - 40, heropos.Y + 40,
+                    RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue ? Color.White : Color.Red, "Burst Mode");
 
                 if (me.Level > 5)
                     if (IsSecondR && RivenMenu.drawings["drawRExpire"].Cast<CheckBox>().CurrentValue)
@@ -163,10 +171,15 @@ namespace MoonyRiven
                 Q.Cast(me.Position);
             }
 
+            bool flag1 = Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo) && !R.IsReady() && !R2.IsReady();
+            bool flag2 = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None && !Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo);
+            if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue && (flag1 || flag2))
+                RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue = false;
+
             if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 Burst();
-            else
-                Combo();
+
+            Combo();
 
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Flee)
             {
@@ -187,6 +200,7 @@ namespace MoonyRiven
             bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
+
             var target = GetTarget();
             if (target == null || !inFightMode)
                 return;
@@ -200,7 +214,7 @@ namespace MoonyRiven
             else if (useW)
                 ForceW();
 
-            if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue && target.Distance(me) > me.GetAutoAttackRange() + 70)
+            if (RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
             {
                 if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
                         Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
@@ -233,11 +247,11 @@ namespace MoonyRiven
                 int currentHits = EntityManager.Heroes.Enemies.Where(x => x.IsValid && !x.IsDead && !x.IsZombie).Count(
                     x =>
                     {
-                        var pred = R2.GetPrediction(x);
-                        bool inside = Cone.IsInside(pred.UnitPosition) && pred.HitChance >= HitChance.High;
+                        var pred = Prediction.Position.PredictUnitPosition(x, (int)(R2.CastDelay + x.Distance(Player.Instance)/R2.Speed*1000));
+                        bool inside = Cone.IsInside(pred);
 
                         if (inside)
-                            hitPositions.Add(pred.CastPosition.To2D());
+                            hitPositions.Add(pred);
 
                         return inside;
                     });
@@ -297,9 +311,6 @@ namespace MoonyRiven
             {
                 ForceAA();
             }
-
-            if (Orbwalker.DisableMovement && args.IsAutoAttack())
-                Orbwalker.DisableMovement = false;
 
             if (args.IsAutoAttack())
                 ExecuteSpellsAfterAA();
@@ -501,11 +512,13 @@ namespace MoonyRiven
 
         static bool Enabled(string id)
         {
-            return (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo &&
-                    RivenMenu.combo[id + ".Combo"].Cast<CheckBox>().CurrentValue) ||
-                   (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.LaneClear &&
-                    RivenMenu.waveClear[id + ".WaveClear"].Cast<CheckBox>().CurrentValue) ||
-                   (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.JungleClear &&
+            return (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo) &&
+                    RivenMenu.combo[id + ".Combo"].Cast<CheckBox>().CurrentValue) 
+                    ||
+                   (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.LaneClear) &&
+                    RivenMenu.waveClear[id + ".WaveClear"].Cast<CheckBox>().CurrentValue) 
+                    ||
+                   (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.LaneClear) &&
                     RivenMenu.jungleClear[id + ".JungleClear"].Cast<CheckBox>().CurrentValue);
         }
 
@@ -552,7 +565,7 @@ namespace MoonyRiven
             Obj_AI_Base target = GetTarget();
             if (target == null)
                 return;
-
+            
             bool inBurstMode = RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue;
             if (inBurstMode)
             {
@@ -561,12 +574,14 @@ namespace MoonyRiven
                 return;
             }
 
-            if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo && Orbwalker.ActiveModesFlags !=
-            Orbwalker.ActiveModes.LaneClear && Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.JungleClear)
-            return;
+            if (!Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo) &&
+                !Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.LaneClear) &&
+                !Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.JungleClear))
+                return;
 
-            if (target is AIHeroClient && !target.IsZombie && !target.IsDead && IsSecondR && R.IsReady() &&
-                    Dmg.IsKillableR((AIHeroClient)target) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
+            var client = target as AIHeroClient;
+            if (client != null && !client.IsZombie && !client.IsDead && IsSecondR && R.IsReady() &&
+                    Dmg.IsKillableR(client) && RivenMenu.combo["useR2.Combo"].Cast<CheckBox>().CurrentValue)
                 ForceR2();
 
             if (RivenMenu.combo["useR1.Combo"].Cast<KeyBind>().CurrentValue && IsFirstR && R.IsReady() &&
@@ -610,25 +625,27 @@ namespace MoonyRiven
             Obj_AI_Base target = null;
             if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.Combo)
                 target = TargetSelector.GetTarget(250 + me.AttackRange + 70, DamageType.Physical);
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.LaneClear)
+            if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.LaneClear))
             {
                 var Mobs =
                     EntityManager.MinionsAndMonsters.GetLaneMinions(EntityManager.UnitTeam.Enemy, me.Position, 250 + me.AttackRange + 70)
                         .OrderByDescending(x => x.MaxHealth).ToList();
                 target = Mobs.FirstOrDefault();
             }
-            if (Orbwalker.ActiveModesFlags == Orbwalker.ActiveModes.JungleClear)
+
+            if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.JungleClear))
             {
                 var Mobs =
                     EntityManager.MinionsAndMonsters.GetJungleMonsters(me.Position, 250 + me.AttackRange + 70)
-                        .OrderByDescending(x => x.MaxHealth).ToList();
-                target = Mobs.FirstOrDefault();
+                    .OrderByDescending(x => x.MaxHealth).ToList();
+                if (target == null)
+                {
+                    target = Mobs.FirstOrDefault();
+                }
             }
+
             if (RivenMenu.combo["burst"].Cast<KeyBind>().CurrentValue)
                 target = TargetSelector.SelectedTarget;
-
-            if (target != null && (target.Equals(default(Obj_AI_Minion)) || !target.IsValid))
-                target = null;
 
             return target;
         }
@@ -681,9 +698,11 @@ namespace MoonyRiven
 
             int QD = RivenMenu.misc["qDelay"].Cast<Slider>().CurrentValue,
                 QLD = RivenMenu.misc["q3Delay"].Cast<Slider>().CurrentValue;
+
             bool inFightMode = Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.None &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.LastHit &&
                                Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Flee;
+
             switch (args.Animation)
             {
                 case "Spell1a":
@@ -714,6 +733,10 @@ namespace MoonyRiven
                     break;
                 case "Spell4a":
                     LastR = Environment.TickCount;
+
+                    oldMenuValue = RivenMenu.drawings["debugDraw"].Cast<CheckBox>().CurrentValue;
+                    RivenMenu.drawings["debugDraw"].Cast<CheckBox>().CurrentValue = true;
+                    Core.DelayAction(() => RivenMenu.drawings["debugDraw"].Cast<CheckBox>().CurrentValue = oldMenuValue, 15000);
                     break;
                 case "Spell4b":
                     var target = TargetSelector.SelectedTarget;
@@ -774,12 +797,15 @@ namespace MoonyRiven
         static int LastW { get; set; }
         static void Burst()
         {
+            if (Orbwalker.ActiveModesFlags != Orbwalker.ActiveModes.Combo)
+                return;
+
             var target = TargetSelector.SelectedTarget;
-            Orbwalker.OrbwalkTo(Game.CursorPos);
+
             if (target == null || !target.IsValidTarget() || target.IsZombie || target.IsInvulnerable) return;
 
-            if (Orbwalker.CanAutoAttack && me.IsInAutoAttackRange(target))
-                Player.IssueOrder(GameObjectOrder.AttackUnit, target);          
+            //if (Orbwalker.CanAutoAttack && me.IsInAutoAttackRange(target))
+            //    Player.IssueOrder(GameObjectOrder.AttackUnit, target);
 
             if (Flash.IsReady())
             {

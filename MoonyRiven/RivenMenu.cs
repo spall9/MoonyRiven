@@ -22,12 +22,12 @@ namespace MoonyRiven
             combo.Add("useR1.Combo", new KeyBind("Use R1", false, KeyBind.BindTypes.PressToggle));
             combo.Add("useR2.Combo", new CheckBox("Use R2"));
             menu.AddSeparator(10);
-            combo.Add("burst", new KeyBind("Shy Burst", false, KeyBind.BindTypes.HoldActive));
+            combo.Add("burst", new KeyBind("Moony Burst", false, KeyBind.BindTypes.PressToggle));
 
             ultimate = menu.AddSubMenu("Ultimate", "moonyRivenUltimate");
             ultimate.Add("rDmgMethod", new ComboBox("R damage method", 1, "Kill only", "Max damage or Killable"));
             ultimate.AddSeparator();
-            ultimate.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 1, 1, 5));
+            ultimate.Add("rmaxDmgHitCount", new Slider("Min Enemies to hit at MaxDamage", 3, 1, 5));
             ultimate.AddSeparator();
             ultimate.Add("coneAngleStep", new Slider("MaxDamage searching accuracy", 3, 0, 20));
             ultimate.AddLabel("Reduce this value to get more FPS");
@@ -49,7 +49,7 @@ namespace MoonyRiven
             drawings.Add("drawRExpire", new CheckBox("Draw R expiry"));
             drawings.Add("drawUltimateCone", new CheckBox("Draw Ultimate Cone"));
             drawings.AddLabel("Disable to achieve more fps");
-            drawings.Add("debugDraw", new CheckBox("Debug Mode"));
+            drawings.Add("debugDraw", new CheckBox("Debug Mode", false));
 
             misc = menu.AddSubMenu("Misc", "moonyRivenMisc");
             misc.Add("qDelay", new Slider("AA reset delay after Q", 29, 20, 100));

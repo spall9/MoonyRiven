@@ -1,0 +1,10 @@
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\MoonyRiven.exe.config
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\MoonyRiven.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\MoonyRiven.pdb
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\EloBuddy.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\EloBuddy.SDK.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\SharpDX.Direct3D9.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\SharpDX.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\bin\Release\Newtonsoft.Json.dll
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\obj\Release\MoonyRiven.exe
+C:\Users\Daniel\Documents\Visual Studio 2015\Projects\MoonyRiven\MoonyRiven\obj\Release\MoonyRiven.pdb
